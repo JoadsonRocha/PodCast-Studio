@@ -103,32 +103,76 @@ export default function App() {
   const [rightPanelTab, setRightPanelTab] = useState<"hosts" | "export">("hosts");
 
   // Document states
-  const [documents, setDocuments] = useState<SourceDocument[]>(INITIAL_DOCUMENTS);
+  const [documents, setDocuments] = useState<SourceDocument[]>(() => {
+    try {
+      const saved = localStorage.getItem("podcast_documents");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map((doc: any) => ({
+          ...doc,
+          addedAt: doc.addedAt ? new Date(doc.addedAt) : new Date()
+        }));
+      }
+    } catch (e) {
+      console.error("Error reading documents from localStorage:", e);
+    }
+    return INITIAL_DOCUMENTS;
+  });
 
   // Configuration states
-  const [host1, setHost1] = useState<HostConfig>({
-    name: "Thiago",
-    voice: "Fenrir",
-    toneDescription: "Curioso, calmo, menos enérgico, menos engraçado, focado em fazer analogias didáticas e simples"
+  const [host1, setHost1] = useState<HostConfig>(() => {
+    try {
+      const saved = localStorage.getItem("podcast_host1");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      name: "Thiago",
+      voice: "Fenrir",
+      toneDescription: "Curioso, calmo, menos enérgico, menos engraçado, focado em fazer analogias didáticas e simples"
+    };
   });
 
-  const [host2, setHost2] = useState<HostConfig>({
-    name: "Marina",
-    voice: "Kore",
-    toneDescription: "Especialista analítica, didática e muito complementar ao parceiro"
+  const [host2, setHost2] = useState<HostConfig>(() => {
+    try {
+      const saved = localStorage.getItem("podcast_host2");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      name: "Marina",
+      voice: "Kore",
+      toneDescription: "Especialista analítica, didática e muito complementar ao parceiro"
+    };
   });
 
-  const [tone, setTone] = useState<string>("Descontraído e Bem-humorado");
-  const [length, setLength] = useState<GenerationLength>("10_mins");
-  const [language, setLanguage] = useState<string>("Português");
+  const [tone, setTone] = useState<string>(() => {
+    return localStorage.getItem("podcast_tone") || "Descontraído e Bem-humorado";
+  });
+  const [length, setLength] = useState<GenerationLength>(() => {
+    return (localStorage.getItem("podcast_length") as GenerationLength) || "10_mins";
+  });
+  const [language, setLanguage] = useState<string>(() => {
+    return localStorage.getItem("podcast_language") || "Português";
+  });
   const [hasTtsQuotaError, setHasTtsQuotaError] = useState<boolean>(false);
   const [ttsQuotaErrorDetail, setTtsQuotaErrorDetail] = useState<string>("");
 
   // Script states
-  const [scriptTitle, setScriptTitle] = useState("O Futuro do Aprendizado e do Trabalho");
-  const [scriptDescription, setScriptDescription] = useState("Thiago e Marina debatem o impacto revolucionário da inteligência artificial na educação e como a comunicação assíncrona está transformando carreiras remotas.");
-  const [script, setScript] = useState<PodcastScriptLine[]>([]);
-  const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  const [scriptTitle, setScriptTitle] = useState(() => {
+    return localStorage.getItem("podcast_scriptTitle") || "O Futuro do Aprendizado e do Trabalho";
+  });
+  const [scriptDescription, setScriptDescription] = useState(() => {
+    return localStorage.getItem("podcast_scriptDescription") || "Thiago e Marina debatem o impacto revolucionário da inteligência artificial na educação e como a comunicação assíncrona está transformando carreiras remotas.";
+  });
+  const [script, setScript] = useState<PodcastScriptLine[]>(() => {
+    try {
+      const saved = localStorage.getItem("podcast_script");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+  const [activeLineId, setActiveLineId] = useState<string | null>(() => {
+    return localStorage.getItem("podcast_activeLineId") || null;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
 
   // Loaders
@@ -138,7 +182,13 @@ export default function App() {
   const [synthesizeAllProgress, setSynthesizeAllProgress] = useState({ current: 0, total: 0 });
 
   // Additional Metadata
-  const [metadata, setMetadata] = useState<PodcastMetadata | null>(null);
+  const [metadata, setMetadata] = useState<PodcastMetadata | null>(() => {
+    try {
+      const saved = localStorage.getItem("podcast_metadata");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  });
 
   // Web Audio Context refs
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -154,6 +204,65 @@ export default function App() {
   useEffect(() => {
     activeLineIdRef.current = activeLineId;
   }, [activeLineId]);
+
+  // Sync to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("podcast_documents", JSON.stringify(documents));
+    } catch (e) {}
+  }, [documents]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("podcast_host1", JSON.stringify(host1));
+    } catch (e) {}
+  }, [host1]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("podcast_host2", JSON.stringify(host2));
+    } catch (e) {}
+  }, [host2]);
+
+  useEffect(() => {
+    localStorage.setItem("podcast_tone", tone);
+  }, [tone]);
+
+  useEffect(() => {
+    localStorage.setItem("podcast_length", length);
+  }, [length]);
+
+  useEffect(() => {
+    localStorage.setItem("podcast_language", language);
+  }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem("podcast_scriptTitle", scriptTitle);
+  }, [scriptTitle]);
+
+  useEffect(() => {
+    localStorage.setItem("podcast_scriptDescription", scriptDescription);
+  }, [scriptDescription]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("podcast_script", JSON.stringify(script));
+    } catch (e) {}
+  }, [script]);
+
+  useEffect(() => {
+    if (activeLineId) {
+      localStorage.setItem("podcast_activeLineId", activeLineId);
+    } else {
+      localStorage.removeItem("podcast_activeLineId");
+    }
+  }, [activeLineId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("podcast_metadata", metadata ? JSON.stringify(metadata) : "");
+    } catch (e) {}
+  }, [metadata]);
 
   // Document controls
   const handleAddDocument = (newDoc: Omit<SourceDocument, "id" | "addedAt">) => {

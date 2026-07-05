@@ -203,7 +203,7 @@ export default function ExportDashboard({
           <div id="metadata-panel" className="space-y-4 border border-gray-100 p-4 rounded-xl bg-gray-50/30">
             {/* SEO Tags */}
             <div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tags Recomendadas</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tags Recomendadas (SEO)</span>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {metadata.tags.map((tag, idx) => (
                   <span key={idx} className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-semibold rounded-md">
@@ -212,6 +212,21 @@ export default function ExportDashboard({
                 ))}
               </div>
             </div>
+
+            {/* Topics Used */}
+            {metadata.topicsUsed && metadata.topicsUsed.length > 0 && (
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tópicos / Assuntos Utilizados</span>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {metadata.topicsUsed.map((topic, idx) => (
+                    <span key={idx} className="px-2 py-1 bg-violet-50 text-violet-700 text-[10px] font-semibold rounded-lg border border-violet-100 flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-violet-400" />
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Chapters */}
             {metadata.chapterMarkers && metadata.chapterMarkers.length > 0 && (

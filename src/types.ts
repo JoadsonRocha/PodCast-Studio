@@ -34,6 +34,7 @@ export interface PodcastMetadata {
   tags: string[];
   showNotes: string;
   chapterMarkers: { timestamp: string; title: string }[];
+  topicsUsed?: string[];
 }
 
 export type GenerationLength = "short" | "medium" | "long" | "10_mins";

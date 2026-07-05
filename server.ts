@@ -251,8 +251,9 @@ Precisamos estruturar os seguintes campos em formato JSON:
 1. tags: lista de 5 palavras-chave relevantes para SEO e classificação.
 2. showNotes: Notas do Show ricas (Markdown) contendo uma introdução polida, resumo dos principais tópicos abordados em bullet points, e um encerramento padrão convidando os ouvintes a assinarem o canal.
 3. chapterMarkers: uma lista de marcadores de capítulos estimados de forma lógica baseados no script fornecido. Cada capítulo deve conter um timestamp de início estimado e um título descritivo curto.
+4. topicsUsed: uma lista de 3 a 5 principais temas, tópicos de estudo, leis, matérias ou assuntos discutidos/abordados no episódio.
 
-Script resumido para contexto:\n${JSON.stringify(script.slice(0, 8))}...`;
+Script resumido para contexto:\n${JSON.stringify(script.slice(0, 15))}...`;
 
     const response = await client.models.generateContent({
       model: "gemini-3.5-flash",
@@ -277,9 +278,14 @@ Script resumido para contexto:\n${JSON.stringify(script.slice(0, 8))}...`;
                 },
                 required: ["timestamp", "title"]
               }
+            },
+            topicsUsed: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "Lista de 3 a 5 tópicos principais abordados na conversa."
             }
           },
-          required: ["tags", "showNotes", "chapterMarkers"]
+          required: ["tags", "showNotes", "chapterMarkers", "topicsUsed"]
         }
       }
     });
