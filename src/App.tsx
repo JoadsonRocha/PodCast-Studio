@@ -519,7 +519,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans select-none antialiased text-gray-800">
+    <div className="min-h-screen lg:h-screen lg:max-h-screen bg-gray-50 flex flex-col font-sans select-none antialiased text-gray-800 lg:overflow-hidden">
       
       {/* Header Bar */}
       <header id="app-header" className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between shrink-0">
@@ -529,7 +529,7 @@ export default function App() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-sm font-black tracking-tight text-gray-900">NotebookLM Podcast Studio</h1>
+              <h1 className="text-sm font-black tracking-tight text-gray-900">AuraCast - Podcast Studio</h1>
               <span className="px-2 py-0.5 bg-violet-600 text-white text-[9px] font-black uppercase tracking-wider rounded-md shadow-sm">
                 StratisPlanner 🎯
               </span>
@@ -577,7 +577,7 @@ export default function App() {
       )}
 
       {/* Main workspace */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0 overflow-hidden">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 pb-28 md:p-6 lg:pb-6 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0 overflow-hidden">
         
         {/* Left column: Sources Pane (Span 4) */}
         <section id="col-sources" className="lg:col-span-3 flex flex-col min-h-0 h-[400px] lg:h-full">
@@ -672,18 +672,20 @@ export default function App() {
       </main>
 
       {/* Bottom Sticky Player Control Bar */}
-      <AudioPlayerPanel
-        script={script}
-        activeLineId={activeLineId}
-        isPlaying={isPlaying}
-        onPlayPause={handlePlayPause}
-        onNextLine={handleNextLine}
-        onPreviousLine={handlePreviousLine}
-        isSynthesizingAll={isSynthesizingAll}
-        synthesizeAllProgress={synthesizeAllProgress}
-        onSynthesizeAll={handleSynthesizeAll}
-        onDownloadPodcast={handleDownloadPodcast}
-      />
+      <div className="sticky bottom-0 left-0 right-0 z-50 shrink-0 shadow-2xl">
+        <AudioPlayerPanel
+          script={script}
+          activeLineId={activeLineId}
+          isPlaying={isPlaying}
+          onPlayPause={handlePlayPause}
+          onNextLine={handleNextLine}
+          onPreviousLine={handlePreviousLine}
+          isSynthesizingAll={isSynthesizingAll}
+          synthesizeAllProgress={synthesizeAllProgress}
+          onSynthesizeAll={handleSynthesizeAll}
+          onDownloadPodcast={handleDownloadPodcast}
+        />
+      </div>
     </div>
   );
 }
