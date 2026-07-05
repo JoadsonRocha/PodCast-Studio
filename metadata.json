@@ -1,0 +1,6 @@
+{
+  "name": "NotebookLM Podcast Studio",
+  "description": "Converta documentos, textos e links em podcasts dinâmicos com dois apresentadores inteligentes e vozes personalizáveis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
