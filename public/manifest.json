@@ -1,0 +1,24 @@
+{
+  "name": "AuraCast - Podcast Studio",
+  "short_name": "AuraCast",
+  "description": "Converta documentos, textos e links em podcasts dinâmicos com dois apresentadores inteligentes e vozes personalizáveis.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
