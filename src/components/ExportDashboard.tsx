@@ -43,7 +43,7 @@ export default function ExportDashboard({
       icon: "spotify",
       status: "idle",
       progress: 0,
-      instruction: "Envia o arquivo WAV integrado e as Notas de Show (Show Notes) diretamente para a sua conta do Spotify de forma automática.",
+      instruction: "Gera o pacote de publicação para você fazer o upload manual do arquivo de áudio WAV e das Notas de Show no Spotify.",
     },
     {
       id: "apple",
@@ -51,7 +51,7 @@ export default function ExportDashboard({
       icon: "apple",
       status: "idle",
       progress: 0,
-      instruction: "Injeta a transmissão de áudio nos servidores da Apple com os marcadores de capítulos gerados.",
+      instruction: "Formata as notas de show, tags e estrutura os metadados para envio de seu episódio na plataforma Apple Podcasts.",
     },
     {
       id: "youtube",
@@ -59,7 +59,7 @@ export default function ExportDashboard({
       icon: "youtube",
       status: "idle",
       progress: 0,
-      instruction: "Mescla o áudio do podcast com uma imagem estática de capa e publica o vídeo diretamente na playlist do seu canal.",
+      instruction: "Instruções passo a passo de como publicar seu áudio com uma imagem estática na playlist de podcasts do YouTube.",
     },
     {
       id: "rss",
@@ -67,12 +67,21 @@ export default function ExportDashboard({
       icon: "rss",
       status: "idle",
       progress: 0,
-      instruction: "Gera o XML padrão do iTunes/Spotify RSS feed para importar em qualquer distribuidor (Anchor, Libsyn, Buzzsprout).",
+      instruction: "Gera o XML padrão do feed RSS para importar em qualquer agregador ou hospedagem de podcast.",
     }
   ]);
 
+  const cleanMarkdown = (text: string) => {
+    if (!text) return "";
+    return text
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/^#+\s+/gm, "")
+      .replace(/#+/g, "");
+  };
+
   const copyToClipboard = (text: string, fieldId: string) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(cleanMarkdown(text));
     setCopiedField(fieldId);
     setTimeout(() => setCopiedField(null), 2000);
   };
@@ -262,7 +271,7 @@ export default function ExportDashboard({
                 </button>
               </div>
               <div className="max-h-28 overflow-y-auto p-2.5 border border-gray-100 bg-white rounded-lg text-[11px] text-gray-600 leading-relaxed whitespace-pre-wrap font-sans">
-                {metadata.showNotes}
+                {cleanMarkdown(metadata.showNotes)}
               </div>
             </div>
           </div>
@@ -341,31 +350,53 @@ export default function ExportDashboard({
                 </div>
               )}
 
-              {/* Show link or copy code of RSS */}
+              {/* Detailed publishing instructions on success */}
               {p.status === "success" && (
-                <div className="pt-2 border-t border-gray-50 flex items-center justify-between">
-                  {p.id === "rss" ? (
-                    <button
-                      id="btn-copy-rss-xml"
-                      type="button"
-                      onClick={() => copyToClipboard(generateRssXml(), "rss")}
-                      className="px-2 py-1 bg-gray-50 hover:bg-gray-100 text-[9px] font-bold text-gray-600 border border-gray-100 rounded flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      {copiedField === "rss" ? <Check size={10} className="text-green-500" /> : <Copy size={10} />}
-                      {copiedField === "rss" ? "Copiado!" : "Copiar Feed XML"}
-                    </button>
-                  ) : (
-                    <a
-                      id={`link-exported-${p.id}`}
-                      href={p.exportedUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[9px] font-bold text-violet-600 hover:underline flex items-center gap-0.5"
-                    >
-                      <Globe size={10} />
-                      Visualizar Publicação ↗
-                    </a>
-                  )}
+                <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                  <div className="bg-violet-50/50 p-2.5 rounded-lg border border-violet-100/50 text-[10px] text-violet-950 space-y-1.5">
+                    <p className="font-bold flex items-center gap-1 text-violet-800">
+                      <Sparkles size={11} /> Guia de Publicação Passo a Passo:
+                    </p>
+                    {p.id === "spotify" && (
+                      <ol className="list-decimal pl-3.5 space-y-1 text-gray-600 font-medium leading-normal">
+                        <li>Certifique-se de baixar o áudio integral do podcast <strong>(.wav)</strong> no player do rodapé.</li>
+                        <li>Copie as <strong>Notas de Show</strong> geradas pela IA acima para usar como descrição do episódio.</li>
+                        <li>Acesse o <a href="https://podcasters.spotify.com/" target="_blank" rel="noopener noreferrer" className="text-violet-700 hover:underline font-bold inline-flex items-center gap-0.5">Spotify for Podcasters ↗</a> (gratuito) e crie ou entre na sua conta de criador.</li>
+                        <li>Clique em <strong>Novo Episódio</strong>, faça o upload do arquivo de áudio e cole os metadados gerados pelo AuraCast.</li>
+                      </ol>
+                    )}
+                    {p.id === "apple" && (
+                      <ol className="list-decimal pl-3.5 space-y-1 text-gray-600 font-medium leading-normal">
+                        <li>Acesse o <a href="https://podcastsconnect.apple.com/" target="_blank" rel="noopener noreferrer" className="text-violet-700 hover:underline font-bold inline-flex items-center gap-0.5">Apple Podcasts Connect ↗</a>.</li>
+                        <li>Insira o link do seu Feed RSS para indexação automática OU envie o arquivo .wav se você hospeda diretamente na Apple.</li>
+                        <li>Utilize a descrição e as tags recomendadas do AuraCast para maximizar o SEO na busca da Apple.</li>
+                      </ol>
+                    )}
+                    {p.id === "youtube" && (
+                      <ol className="list-decimal pl-3.5 space-y-1 text-gray-600 font-medium leading-normal">
+                        <li>Baixe o áudio WAV completo do seu episódio no rodapé.</li>
+                        <li>Combine o áudio com uma imagem estática (como a arte de capa do seu canal) usando ferramentas gratuitas online (como Headliner, Canva ou Clipchamp) para criar um vídeo (.mp4).</li>
+                        <li>Faça o upload do vídeo no YouTube Studio e configure o vídeo como um episódio na sua <strong>Playlist de Podcast</strong>.</li>
+                        <li>Cole a descrição e tags geradas acima para garantir boa indexação.</li>
+                      </ol>
+                    )}
+                    {p.id === "rss" && (
+                      <div className="space-y-1.5">
+                        <p className="text-gray-600 font-medium leading-normal">
+                          Copie o feed XML gerado abaixo e cole-o nas configurações do seu distribuidor preferido (Buzzsprout, Podbean, Anchor, etc.) para que eles republiquem seu podcast nas plataformas automaticamente:
+                        </p>
+                        <button
+                          id="btn-copy-rss-xml"
+                          type="button"
+                          onClick={() => copyToClipboard(generateRssXml(), "rss")}
+                          className="px-2.5 py-1 bg-violet-600 hover:bg-violet-700 text-[10px] font-bold text-white rounded flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                        >
+                          {copiedField === "rss" ? <Check size={10} className="text-white" /> : <Copy size={10} />}
+                          {copiedField === "rss" ? "Copiado!" : "Copiar Feed XML"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

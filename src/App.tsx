@@ -119,6 +119,10 @@ export default function App() {
     return INITIAL_DOCUMENTS;
   });
 
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(() => {
+    return localStorage.getItem("podcast_selectedSourceId") || null;
+  });
+
   // Configuration states
   const [host1, setHost1] = useState<HostConfig>(() => {
     try {
@@ -213,6 +217,25 @@ export default function App() {
   }, [documents]);
 
   useEffect(() => {
+    if (documents.length > 0) {
+      const exists = documents.some((d) => d.id === selectedSourceId);
+      if (!exists) {
+        setSelectedSourceId(documents[0].id);
+      }
+    } else {
+      setSelectedSourceId(null);
+    }
+  }, [documents, selectedSourceId]);
+
+  useEffect(() => {
+    if (selectedSourceId) {
+      localStorage.setItem("podcast_selectedSourceId", selectedSourceId);
+    } else {
+      localStorage.removeItem("podcast_selectedSourceId");
+    }
+  }, [selectedSourceId]);
+
+  useEffect(() => {
     try {
       localStorage.setItem("podcast_host1", JSON.stringify(host1));
     } catch (e) {}
@@ -281,6 +304,11 @@ export default function App() {
   // Generate Podcast Script using gemini-3.5-flash server endpoint
   const handleGenerateScript = async () => {
     if (documents.length === 0) return;
+    
+    // Find the selected document. If not found, use all documents as a fallback
+    const selectedDoc = documents.find((d) => d.id === selectedSourceId);
+    const sourcesToGenerate = selectedDoc ? [selectedDoc] : documents;
+
     setIsGeneratingScript(true);
     setMetadata(null); // Reset metadata on fresh generation
     stopPlayback();
@@ -290,7 +318,7 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sources: documents,
+          sources: sourcesToGenerate,
           tone,
           host1,
           host2,
@@ -445,6 +473,7 @@ export default function App() {
 
       const source = audioCtxRef.current.createBufferSource();
       source.buffer = buffer;
+
       source.connect(audioCtxRef.current.destination);
       activeSourceRef.current = source;
 
@@ -694,6 +723,8 @@ export default function App() {
             documents={documents}
             onAddDocument={handleAddDocument}
             onRemoveDocument={handleRemoveDocument}
+            selectedSourceId={selectedSourceId}
+            onSelectSource={setSelectedSourceId}
           />
         </section>
 
@@ -713,6 +744,8 @@ export default function App() {
             hasDocuments={documents.length > 0}
             host1={host1}
             host2={host2}
+            hasTtsQuotaError={hasTtsQuotaError}
+            ttsQuotaErrorDetail={ttsQuotaErrorDetail}
           />
         </section>
 

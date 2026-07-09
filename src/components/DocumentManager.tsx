@@ -53,12 +53,16 @@ interface DocumentManagerProps {
   documents: SourceDocument[];
   onAddDocument: (doc: Omit<SourceDocument, "id" | "addedAt">) => void;
   onRemoveDocument: (id: string) => void;
+  selectedSourceId: string | null;
+  onSelectSource: (id: string) => void;
 }
 
 export default function DocumentManager({
   documents,
   onAddDocument,
   onRemoveDocument,
+  selectedSourceId,
+  onSelectSource,
 }: DocumentManagerProps) {
   const [activeTab, setActiveTab] = useState<"text" | "url" | "file">("text");
   
@@ -396,50 +400,88 @@ export default function DocumentManager({
 
       {/* Sources list */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col min-h-0">
-        <h3 id="sources-title" className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+        <h3 id="sources-title" className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
           Fontes Adicionadas ({documents.length})
         </h3>
+        {documents.length > 1 && (
+          <p className="text-[10px] text-gray-400 mb-3 leading-tight">
+            Selecione qual fonte usar para gerar o roteiro clicando nela:
+          </p>
+        )}
+        {documents.length === 1 && (
+          <p className="text-[10px] text-gray-400 mb-3 leading-tight">
+            Esta fonte ativa será usada para gerar o roteiro:
+          </p>
+        )}
 
         {documents.length === 0 ? (
-          <div id="sources-empty-state" className="flex-1 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50">
+          <div id="sources-empty-state" className="flex-1 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50 mt-2">
             <p className="text-xs text-gray-400 max-w-[200px] leading-relaxed">
               Adicione textos, links ou artigos para servir de base para os apresentadores.
             </p>
           </div>
         ) : (
-          <div id="sources-list" className="space-y-2 flex-1">
-            {documents.map((doc) => (
-              <div
-                id={`source-${doc.id}`}
-                key={doc.id}
-                className="group flex items-start justify-between p-3 border border-gray-100 rounded-xl hover:border-gray-300 bg-white hover:shadow-sm transition-all"
-              >
-                <div className="flex gap-2.5 min-w-0">
-                  <div className="p-1.5 bg-gray-50 rounded-lg text-gray-500 shrink-0 mt-0.5">
-                    {doc.type === "url" ? <LinkIcon size={14} /> : <FileText size={14} />}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-900 truncate pr-1" title={doc.title}>
-                      {doc.title}
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-0.5 font-medium flex items-center gap-1.5">
-                      <span>{(doc.charCount / 1000).toFixed(1)}k caracteres</span>
-                      <span>•</span>
-                      <span className="capitalize">{doc.type}</span>
-                    </p>
-                  </div>
-                </div>
-                <button
-                  id={`btn-remove-source-${doc.id}`}
-                  type="button"
-                  onClick={() => onRemoveDocument(doc.id)}
-                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all self-center cursor-pointer"
-                  title="Remover fonte"
+          <div id="sources-list" className="space-y-2 flex-1 mt-1">
+            {documents.map((doc) => {
+              const isSelected = doc.id === selectedSourceId;
+              return (
+                <div
+                  id={`source-${doc.id}`}
+                  key={doc.id}
+                  onClick={() => onSelectSource(doc.id)}
+                  className={`group flex items-start justify-between p-3 border rounded-xl transition-all cursor-pointer ${
+                    isSelected
+                      ? "border-violet-600 bg-violet-50/30 shadow-sm ring-1 ring-violet-600/20"
+                      : "border-gray-100 hover:border-gray-300 bg-white hover:shadow-sm"
+                  }`}
                 >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
+                  <div className="flex gap-2.5 min-w-0 flex-1">
+                    <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 flex items-center justify-center ${
+                      isSelected ? "bg-violet-100 text-violet-600" : "bg-gray-50 text-gray-500"
+                    }`}>
+                      {doc.type === "url" ? <LinkIcon size={14} /> : <FileText size={14} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className={`text-xs font-semibold truncate ${
+                          isSelected ? "text-violet-900" : "text-gray-900"
+                        }`} title={doc.title}>
+                          {doc.title}
+                        </p>
+                        {isSelected && (
+                          <span className="shrink-0 flex items-center justify-center text-violet-600">
+                            <CheckCircle2 size={12} className="fill-violet-50" />
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-400 mt-0.5 font-medium flex items-center gap-1.5">
+                        <span>{(doc.charCount / 1000).toFixed(1)}k caracteres</span>
+                        <span>•</span>
+                        <span className="capitalize">{doc.type}</span>
+                        {isSelected && (
+                          <>
+                            <span>•</span>
+                            <span className="text-violet-600 font-bold uppercase tracking-wider text-[8px]">Ativa</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    id={`btn-remove-source-${doc.id}`}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveDocument(doc.id);
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all self-center cursor-pointer shrink-0 ml-1"
+                    title="Remover fonte"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

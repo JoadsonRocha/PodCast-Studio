@@ -120,7 +120,10 @@ app.post("/api/podcast/generate-script", async (req, res) => {
     }
 
     const systemPrompt = `Você é um roteirista profissional de podcasts focado em criar diálogos extremamente naturais, envolventes e fluidos, idêntico ao estilo "Deep Dive" do NotebookLM.
-Sua tarefa é ler os documentos fornecidos e criar um roteiro de podcast em formato de diálogo entre dois apresentadores.
+Sua tarefa é ler todos os documentos fornecidos e criar um roteiro de podcast em formato de diálogo entre dois apresentadores.
+
+ATENÇÃO IMPORTANTE PARA MÚLTIPLAS FONTES:
+Se houver mais de uma fonte/documento fornecido (ex: Documento 1, Documento 2, etc.), você DEVE OBRIGATORIAMENTE fazer com que os apresentadores discutam, comparem, debatam e integrem os conceitos de TODAS as fontes fornecidas ao longo da conversa. Não se limite a falar apenas do primeiro documento; crie conexões e pontes lógicas entre todas as matérias e conteúdos fornecidos nas fontes para enriquecer o podcast.
 
 Apresentadores:
 1. ${host1.name}: apresentador principal (Voz ${getVoiceGender(host1.voice)}). Estilo/Tom de voz solicitado: ${host1.toneDescription || "Espontâneo, curioso, excelente em fazer analogias cotidianas."}
@@ -249,7 +252,7 @@ Descrição: ${description}
 
 Precisamos estruturar os seguintes campos em formato JSON:
 1. tags: lista de 5 palavras-chave relevantes para SEO e classificação.
-2. showNotes: Notas do Show ricas (Markdown) contendo uma introdução polida, resumo dos principais tópicos abordados em bullet points, e um encerramento padrão convidando os ouvintes a assinarem o canal.
+2. showNotes: Notas do Show ricas em formato de TEXTO PURO LIMPO (SEM MARKDOWN, NÃO USE ASTERISCOS '**' OU CERQUILHAS '#'). Contendo uma introdução polida, resumo dos principais tópicos abordados em bullet points simples usando o hífen ('-'), e um encerramento padrão convidando os ouvintes a assinarem o canal.
 3. chapterMarkers: uma lista de marcadores de capítulos estimados de forma lógica baseados no script fornecido. Cada capítulo deve conter um timestamp de início estimado e um título descritivo curto.
 4. topicsUsed: uma lista de 3 a 5 principais temas, tópicos de estudo, leis, matérias ou assuntos discutidos/abordados no episódio.
 
@@ -267,7 +270,7 @@ Script resumido para contexto:\n${JSON.stringify(script.slice(0, 15))}...`;
               type: Type.ARRAY,
               items: { type: Type.STRING }
             },
-            showNotes: { type: Type.STRING, description: "Show notes polidas contendo resumo e créditos em formato Markdown." },
+            showNotes: { type: Type.STRING, description: "Show notes polidas contendo resumo e créditos em TEXTO PURO, SEM MARKDOWN (NÃO utilize caracteres como '**', '*' ou '#')." },
             chapterMarkers: {
               type: Type.ARRAY,
               items: {
@@ -295,7 +298,16 @@ Script resumido para contexto:\n${JSON.stringify(script.slice(0, 15))}...`;
       throw new Error("Não foi possível gerar os metadados adicionais.");
     }
 
-    res.json(JSON.parse(textResponse));
+    const parsedData = JSON.parse(textResponse);
+    if (parsedData.showNotes) {
+      parsedData.showNotes = parsedData.showNotes
+        .replace(/\*\*/g, "")
+        .replace(/\*/g, "")
+        .replace(/^#+\s+/gm, "")
+        .replace(/#+/g, "");
+    }
+
+    res.json(parsedData);
   } catch (err: any) {
     console.error("Metadata generation error:", err);
     res.status(500).json({ error: err.message || "Erro ao gerar metadados do podcast." });

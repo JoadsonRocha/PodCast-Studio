@@ -28,6 +28,8 @@ interface ScriptViewerProps {
   hasDocuments: boolean;
   host1: HostConfig;
   host2: HostConfig;
+  hasTtsQuotaError?: boolean;
+  ttsQuotaErrorDetail?: string;
 }
 
 export default function ScriptViewer({
@@ -44,6 +46,8 @@ export default function ScriptViewer({
   hasDocuments,
   host1,
   host2,
+  hasTtsQuotaError = false,
+  ttsQuotaErrorDetail = "",
 }: ScriptViewerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
@@ -145,6 +149,21 @@ export default function ScriptViewer({
               <h3 className="text-sm font-bold text-gray-900">{title}</h3>
               <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
             </div>
+
+            {hasTtsQuotaError && (
+              <div className="bg-amber-50/80 border border-amber-100 rounded-xl p-4 text-amber-900 space-y-1.5 flex items-start gap-3">
+                <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={16} />
+                <div className="space-y-1 text-xs">
+                  <p className="font-bold text-amber-850 flex items-center gap-1">
+                    Limite de Requisições do Gemini TTS Excedido (Quota Limite)
+                  </p>
+                  <p className="text-gray-600 leading-relaxed font-medium">
+                    {ttsQuotaErrorDetail || "A cota diária ou limite de requisições do modelo de áudio neural foi atingida."}{" "}
+                    Você ainda pode ler e editar todo o roteiro abaixo, exportá-lo na aba <strong>Distribuição e SEO</strong>, ou aguardar alguns minutos para que a cota da API seja reestabelecida.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Live Audio Monitoring Waveform */}
             {(() => {

@@ -38,6 +38,21 @@ const TONE_PRESETS = [
   { value: "Investigativo, Dramático e Dinâmico", label: "Investigativo e Dramático" },
 ];
 
+const HOST1_PRESETS = [
+  { label: "Curioso & Didático 🧠", text: "Curioso, calmo, focado em fazer analogias didáticas e simples" },
+  { label: "Descontraído & Engraçado 🎭", text: "Espontâneo, bem-humorado, descontraído e que usa metáforas engraçadas do cotidiano" },
+  { label: "Super Energético ⚡", text: "Energético, entusiasmado, fala com paixão e traz muita vibração positiva" },
+  { label: "Cético & Crítico 🤔", text: "Questionador, analítico, busca furos no argumento e pede provas práticas" },
+  { label: "Contador de Histórias 📖", text: "Narrativo, focado em criar um enredo e conexão humana emocional" }
+];
+
+const HOST2_PRESETS = [
+  { label: "Especialista Analítica 🔬", text: "Especialista analítica, didática e muito complementar ao parceiro" },
+  { label: "Científica & Fatos 📊", text: "Extremamente focada em dados empíricos, estatísticas e fontes científicas" },
+  { label: "Provocativa & Crítica 🔥", text: "Desafiadora, faz provocações inteligentes para aprofundar o assunto" },
+  { label: "Coach & Inspiradora ✨", text: "Inspiradora, positiva, focada em desenvolvimento pessoal e aplicação prática imediata" }
+];
+
 export default function HostConfigurator({
   host1,
   host2,
@@ -103,8 +118,10 @@ export default function HostConfigurator({
           </div>
         </div>
 
-        <div>
-          <label id="lbl-host1-desc" className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+
+
+        <div className="space-y-1.5">
+          <label id="lbl-host1-desc" className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
             <Volume2 size={10} /> Personalidade e Tom de Fala
           </label>
           <input
@@ -115,6 +132,26 @@ export default function HostConfigurator({
             onChange={(e) => onUpdateHost1({ toneDescription: e.target.value })}
             className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-gray-900 placeholder:text-gray-400"
           />
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {HOST1_PRESETS.map((preset, idx) => {
+              const isSelected = host1.toneDescription === preset.text;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => onUpdateHost1({ toneDescription: preset.text })}
+                  className={`text-[9px] px-2 py-1 rounded-full border transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-violet-600 text-white border-violet-600 font-medium shadow-xs"
+                      : "bg-white text-gray-500 border-gray-100 hover:border-gray-300 hover:text-gray-700"
+                  }`}
+                  title={preset.text}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -159,8 +196,10 @@ export default function HostConfigurator({
           </div>
         </div>
 
-        <div>
-          <label id="lbl-host2-desc" className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+
+
+        <div className="space-y-1.5">
+          <label id="lbl-host2-desc" className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
             <Volume2 size={10} /> Personalidade e Tom de Fala
           </label>
           <input
@@ -171,6 +210,26 @@ export default function HostConfigurator({
             onChange={(e) => onUpdateHost2({ toneDescription: e.target.value })}
             className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-gray-900 placeholder:text-gray-400"
           />
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {HOST2_PRESETS.map((preset, idx) => {
+              const isSelected = host2.toneDescription === preset.text;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => onUpdateHost2({ toneDescription: preset.text })}
+                  className={`text-[9px] px-2 py-1 rounded-full border transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-violet-600 text-white border-violet-600 font-medium shadow-xs"
+                      : "bg-white text-gray-500 border-gray-100 hover:border-gray-300 hover:text-gray-700"
+                  }`}
+                  title={preset.text}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -235,6 +294,8 @@ export default function HostConfigurator({
             </select>
           </div>
         </div>
+
+
       </div>
     </div>
   );
