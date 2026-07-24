@@ -1,13 +1,18 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Mic, 
   Settings2, 
   Volume2, 
   Clock, 
   Globe2, 
-  Sparkles 
+  Sparkles,
+  Database,
+  Trash2,
+  Zap,
+  CheckCircle2
 } from "lucide-react";
 import { HostConfig, GenerationLength } from "../types";
+import { clearAudioCache, getAudioCacheStats } from "../utils/audioCache";
 
 interface HostConfiguratorProps {
   host1: HostConfig;
@@ -34,7 +39,7 @@ const TONE_PRESETS = [
   { value: "Descontraído e Bem-humorado", label: "Descontraído e Bem-humorado" },
   { value: "Altamente Profissional e Analítico", label: "Profissional e Analítico" },
   { value: "Curioso e Didático (Explicação simples)", label: "Didático e Explicativo" },
-  { value: "Foco em Concursos Públicos (Didático e Memorização - StratisPlanner)", label: "StratisPlanner (Concursos)" },
+  { value: "Foco em Concursos Públicos (Didático e Memorização)", label: "Concursos Públicos" },
   { value: "Investigativo, Dramático e Dinâmico", label: "Investigativo e Dramático" },
 ];
 
@@ -65,6 +70,24 @@ export default function HostConfigurator({
   onUpdateLength,
   onUpdateLanguage,
 }: HostConfiguratorProps) {
+  const [cacheStats, setCacheStats] = useState<{ count: number; totalKB: number }>({ count: 0, totalKB: 0 });
+
+  const loadStats = async () => {
+    const stats = await getAudioCacheStats();
+    setCacheStats(stats);
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const handleClearCache = async () => {
+    if (window.confirm("Deseja realmente apagar o cache local de áudios sintéticos?")) {
+      await clearAudioCache();
+      await loadStats();
+    }
+  };
+
   return (
     <div id="host-configurator" className="space-y-6 p-1">
       <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
@@ -295,6 +318,40 @@ export default function HostConfigurator({
           </div>
         </div>
 
+        {/* Token & Audio Cache Manager (Optimizations 1, 2, B, C) */}
+        <div className="mt-4 pt-3 border-t border-gray-100 space-y-2 bg-emerald-50/40 p-3 rounded-xl border border-emerald-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-emerald-950">
+              <Zap size={14} className="text-emerald-600" />
+              <span className="text-xs font-bold">Otimização de Tokens & Cota</span>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+              Cache Ativo (B)
+            </span>
+          </div>
+
+          <p className="text-[11px] text-emerald-800 leading-relaxed">
+            Áudios gerados pelo Gemini TTS são salvos automaticamente em cache local no navegador (IndexedDB). Reproduções e re-sínteses de falas iguais consomem <strong>0 tokens e 0 cota de API</strong>.
+          </p>
+
+          <div className="flex items-center justify-between pt-1">
+            <div className="text-[10px] text-gray-500 flex items-center gap-1">
+              <Database size={12} className="text-gray-400" />
+              <span>Cache Local: <strong>{cacheStats.count} falas ({cacheStats.totalKB} KB)</strong></span>
+            </div>
+
+            {cacheStats.count > 0 && (
+              <button
+                type="button"
+                onClick={handleClearCache}
+                className="text-[10px] font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Trash2 size={11} />
+                <span>Limpar Cache</span>
+              </button>
+            )}
+          </div>
+        </div>
 
       </div>
     </div>

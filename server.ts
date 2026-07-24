@@ -12,6 +12,73 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json({ limit: "50mb" }));
 
+// Helper to format raw Gemini API and server errors into friendly user messages
+function formatFriendlyErrorMessage(err: any): string {
+  if (!err) return "Ocorreu um erro inesperado ao processar sua solicitação.";
+
+  const rawMsg = typeof err === "string" ? err : err?.message || JSON.stringify(err);
+  const lowerMsg = rawMsg.toLowerCase();
+
+  // Missing or invalid GEMINI_API_KEY
+  if (lowerMsg.includes("gemini_api_key") || lowerMsg.includes("chave gemini_api_key não foi configurada")) {
+    return "A chave da API de IA não está configurada. Por favor, adicione a variável GEMINI_API_KEY no painel de configurações.";
+  }
+
+  // 429 Quota or Rate Limit
+  if (
+    lowerMsg.includes("429") ||
+    lowerMsg.includes("quota") ||
+    lowerMsg.includes("resource_exhausted") ||
+    lowerMsg.includes("limit") ||
+    lowerMsg.includes("exceeded")
+  ) {
+    const retryMatch = rawMsg.match(/retry in ([\d.]+)\s*s/i);
+    const retrySecs = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : null;
+    if (retrySecs) {
+      return `O limite de requisições da API de IA foi atingido. Por favor, aguarde cerca de ${retrySecs} segundos antes de tentar novamente.`;
+    }
+    return "O limite temporário de requisições ou cota da API de IA foi atingido. Por favor, aguarde alguns instantes e tente novamente.";
+  }
+
+  // Invalid API Key / Unauthorized
+  if (
+    lowerMsg.includes("api_key_invalid") ||
+    lowerMsg.includes("invalid api key") ||
+    lowerMsg.includes("unauthorized") ||
+    lowerMsg.includes("401") ||
+    lowerMsg.includes("403")
+  ) {
+    return "A chave da API de IA informada é inválida ou não possui permissão. Verifique a chave configurada.";
+  }
+
+  // Content Safety Filter
+  if (lowerMsg.includes("safety") || lowerMsg.includes("blocked") || lowerMsg.includes("finish_reason_safety")) {
+    return "O conteúdo fornecido foi bloqueado pelos filtros de segurança do serviço de IA. Por favor, revise os textos das fontes.";
+  }
+
+  // Service Unavailable / Server Overloaded
+  if (
+    lowerMsg.includes("503") ||
+    lowerMsg.includes("unavailable") ||
+    lowerMsg.includes("overloaded") ||
+    lowerMsg.includes("500")
+  ) {
+    return "Os servidores do serviço de IA estão temporariamente sobrecarregados ou indisponíveis. Por favor, tente novamente em alguns instantes.";
+  }
+
+  // URL Fetch Error
+  if (lowerMsg.includes("falha ao carregar a página") || lowerMsg.includes("fetch url")) {
+    return "Não foi possível acessar o conteúdo da URL informada. Verifique se o endereço está correto e publicamente acessível.";
+  }
+
+  // Return original clean string if short and plain text
+  if (rawMsg.length < 180 && !rawMsg.includes("{") && !rawMsg.includes("ApiError") && !rawMsg.includes("http")) {
+    return rawMsg;
+  }
+
+  return "Ocorreu uma falha ao comunicar com o serviço de inteligência artificial. Por favor, tente novamente.";
+}
+
 // Helper to lazily initialize the Gemini client with proper header telemetry
 let aiClient: GoogleGenAI | null = null;
 
@@ -81,7 +148,7 @@ app.post("/api/fetch-url", async (req, res) => {
     res.json({ text });
   } catch (err: any) {
     console.error("Fetch URL error:", err);
-    res.status(500).json({ error: err.message || "Erro ao obter conteúdo da URL." });
+    res.status(500).json({ error: formatFriendlyErrorMessage(err) });
   }
 });
 
@@ -96,25 +163,44 @@ app.post("/api/podcast/generate-script", async (req, res) => {
 
     const client = getGeminiClient();
 
-    // Concatenate sources content
-    const sourceContentCombined = sources
-      .map((s, index) => `[DOCUMENTO ${index + 1}: ${s.title || "Sem título"}]\n${s.content}`)
-      .join("\n\n");
+    // Concatenate sources content with Smart Truncation & Token Optimization (1)
+    const MAX_DOC_CHARS = 25000;
+    const MAX_TOTAL_CHARS = 50000;
+
+    let currentTotalChars = 0;
+    const processedSources = sources.map((s, index) => {
+      let content = (s.content || "").trim();
+      if (content.length > MAX_DOC_CHARS) {
+        const startChunk = content.slice(0, Math.floor(MAX_DOC_CHARS * 0.7));
+        const endChunk = content.slice(-Math.floor(MAX_DOC_CHARS * 0.3));
+        content = `${startChunk}\n\n[...CONTEÚDO INTERMEDIÁRIO RESUMIDO PARA ECONOMIA DE TOKENS...]\n\n${endChunk}`;
+      }
+      
+      if (currentTotalChars + content.length > MAX_TOTAL_CHARS) {
+        const remainingBudget = Math.max(1000, MAX_TOTAL_CHARS - currentTotalChars);
+        content = content.slice(0, remainingBudget) + "\n\n[...FIM DO DOCUMENTO TRUNCADO PARA RESPEITAR LIMITE DE TOKENS...]";
+      }
+      currentTotalChars += content.length;
+
+      return `[DOCUMENTO ${index + 1}: ${s.title || "Sem título"}]\n${content}`;
+    });
+
+    const sourceContentCombined = processedSources.join("\n\n");
 
     const getVoiceGender = (voice: string) => {
       return (voice === "Kore" || voice === "Zephyr") ? "Feminina" : "Masculina";
     };
 
     const lengthDesc = 
-      length === "short" ? "curto (cerca de 6 a 8 turnos de diálogo)" :
-      length === "long" ? "longo (cerca de 16 a 22 turnos de diálogo)" :
-      length === "10_mins" ? "longo e muito aprofundado para simular 10 minutos de áudio (cerca de 35 a 45 turnos de diálogo)" :
-      "médio (cerca de 10 a 14 turnos de diálogo)";
+      length === "short" ? "curto e ultra-direto (cerca de 5 a 7 turnos de diálogo curtos - ideal para economia extrema de tokens)" :
+      length === "long" ? "longo (cerca de 16 a 20 turnos de diálogo)" :
+      length === "10_mins" ? "longo e muito aprofundado para simular 10 minutos de áudio (cerca de 30 a 40 turnos de diálogo)" :
+      "médio (cerca de 9 a 13 turnos de diálogo)";
 
     let customTonePrompt = "";
     if (tone && (tone.includes("Concursos") || tone.includes("StratisPlanner"))) {
       customTonePrompt = `
-- Como este episódio tem foco em Concursos Públicos (Plataforma StratisPlanner), os apresentadores devem focar de forma extremamente didática na fixação de conceitos, regras, prazos, leis ou detalhes técnicos presentes nos documentos fornecidos.
+- Como este episódio tem foco em Concursos Públicos, os apresentadores devem focar de forma extremamente didática na fixação de conceitos, regras, prazos, leis ou detalhes técnicos presentes nos documentos fornecidos.
 - Devem usar técnicas de memorização ativa, sugerir mnemônicos eficientes, e simular "Pegadinhas de Banca" de concursos para alertar o ouvinte sobre o que é mais cobrado.
 - Devem falar como dois concurseiros/professores experientes e focados em gabaritar a matéria.`;
     }
@@ -188,7 +274,7 @@ Instruções Cruciais de Roteiro:
     res.json(parsedJson);
   } catch (err: any) {
     console.error("Generate script error:", err);
-    res.status(500).json({ error: err.message || "Erro ao gerar o roteiro do podcast." });
+    res.status(500).json({ error: formatFriendlyErrorMessage(err) });
   }
 });
 
@@ -224,14 +310,14 @@ app.post("/api/podcast/synthesize-chunk", async (req, res) => {
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!base64Audio) {
-      throw new Error("Não foi possível gerar áudio a partir do Gemini TTS.");
+      throw new Error("Não foi possível gerar áudio a partir do serviço de voz.");
     }
 
     // Return the 24kHz raw PCM little-endian base64 audio
     res.json({ audio: base64Audio });
   } catch (err: any) {
     console.error("Synthesis error:", err);
-    res.status(500).json({ error: err.message || "Erro interno ao sintetizar a fala." });
+    res.status(500).json({ error: formatFriendlyErrorMessage(err) });
   }
 });
 
@@ -310,7 +396,7 @@ Script resumido para contexto:\n${JSON.stringify(script.slice(0, 15))}...`;
     res.json(parsedData);
   } catch (err: any) {
     console.error("Metadata generation error:", err);
-    res.status(500).json({ error: err.message || "Erro ao gerar metadados do podcast." });
+    res.status(500).json({ error: formatFriendlyErrorMessage(err) });
   }
 });
 

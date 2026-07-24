@@ -195,7 +195,7 @@ export default function ExportDashboard({
           <div id="metadata-loading" className="p-5 border border-dashed border-gray-100 rounded-xl bg-gray-50/30 flex flex-col items-center justify-center text-center space-y-2">
             <Loader2 size={20} className="animate-spin text-violet-500" />
             <p className="text-xs font-semibold text-gray-700">Construindo Notas de Show e SEO...</p>
-            <p className="text-[10px] text-gray-400">O Gemini está analisando o roteiro para criar marcadores de capítulos de tempo.</p>
+            <p className="text-[10px] text-gray-400">A IA está analisando o roteiro para criar marcadores de capítulos de tempo.</p>
           </div>
         )}
 
@@ -203,7 +203,7 @@ export default function ExportDashboard({
         {!metadata && !isGeneratingMetadata && (
           <div className="p-4 border border-dashed border-gray-100 rounded-xl bg-gray-50/50 text-center text-xs text-gray-400">
             {script.length > 0 
-              ? "Clique em 'Criar Notas de Show' para gerar sumário estruturado, tags e marcadores de tempo automáticos via Gemini."
+              ? "Clique em 'Criar Notas de Show' para gerar sumário estruturado, tags e marcadores de tempo automáticos via IA."
               : "Gere o roteiro do podcast primeiro para poder estruturar os metadados de distribuição."}
           </div>
         )}

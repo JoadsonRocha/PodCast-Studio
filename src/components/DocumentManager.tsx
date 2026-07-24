@@ -230,45 +230,45 @@ export default function DocumentManager({
   return (
     <div id="document-manager" className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full">
       {/* Tab Selectors */}
-      <div className="flex border-b border-gray-100 bg-gray-50/50 p-1 gap-1">
+      <div className="flex border-b border-gray-100 bg-gray-50/50 p-1 gap-1 overflow-x-auto custom-scrollbar">
         <button
           id="tab-btn-text"
           type="button"
           onClick={() => { setActiveTab("text"); setUrlError(""); setFileError(""); }}
-          className={`flex-1 py-2.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+          className={`flex-1 py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 transition-all whitespace-nowrap min-w-0 ${
             activeTab === "text"
               ? "bg-white text-gray-900 shadow-sm ring-1 ring-black/5"
               : "text-gray-500 hover:text-gray-900"
           }`}
         >
-          <FileText size={14} />
-          Escrever Texto
+          <FileText size={13} className="shrink-0" />
+          <span>Texto</span>
         </button>
         <button
           id="tab-btn-url"
           type="button"
           onClick={() => { setActiveTab("url"); setUrlError(""); setFileError(""); }}
-          className={`flex-1 py-2.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+          className={`flex-1 py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 transition-all whitespace-nowrap min-w-0 ${
             activeTab === "url"
               ? "bg-white text-gray-900 shadow-sm ring-1 ring-black/5"
               : "text-gray-500 hover:text-gray-900"
           }`}
         >
-          <LinkIcon size={14} />
-          Importar URL
+          <LinkIcon size={13} className="shrink-0" />
+          <span>Importar URL</span>
         </button>
         <button
           id="tab-btn-file"
           type="button"
           onClick={() => { setActiveTab("file"); setUrlError(""); setFileError(""); }}
-          className={`flex-1 py-2.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+          className={`flex-1 py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 transition-all whitespace-nowrap min-w-0 ${
             activeTab === "file"
               ? "bg-white text-gray-900 shadow-sm ring-1 ring-black/5"
               : "text-gray-500 hover:text-gray-900"
           }`}
         >
-          <Upload size={14} />
-          Enviar Arquivo
+          <Upload size={13} className="shrink-0" />
+          <span>Enviar Arquivo</span>
         </button>
       </div>
 

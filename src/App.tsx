@@ -7,7 +7,9 @@ import {
   ListMusic, 
   HelpCircle, 
   Mic2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  AlertCircle,
+  X
 } from "lucide-react";
 import DocumentManager from "./components/DocumentManager";
 import HostConfigurator from "./components/HostConfigurator";
@@ -22,6 +24,7 @@ import {
   GenerationLength 
 } from "./types";
 import { createAudioBufferFromPcm, pcmChunksToWavBlob } from "./utils/audio";
+import { getAudioFromCache, saveAudioToCache } from "./utils/audioCache";
 
 // Initial placeholder documents to populate the playground instantly
 const INITIAL_DOCUMENTS: SourceDocument[] = [
@@ -65,7 +68,7 @@ const parseQuotaError = (errorMsg: string): string => {
           const retryMatch = msg.match(/retry in ([\d.]+)\s*s/i);
           const retrySecs = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : null;
           
-          let friendly = "A cota diária ou limite de requisições do Gemini TTS foi atingida temporariamente.";
+          let friendly = "A cota diária ou limite de requisições de áudio por IA foi atingida temporariamente.";
           if (retrySecs) {
             friendly += ` Por favor, aguarde cerca de ${retrySecs} segundos antes de tentar novamente.`;
           } else {
@@ -86,7 +89,7 @@ const parseQuotaError = (errorMsg: string): string => {
     const retryMatch = errorMsg.match(/retry in ([\d.]+)\s*s/i);
     const retrySecs = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : null;
     
-    let friendly = "Cota diária ou limite de requisições do Gemini TTS atingido temporariamente.";
+    let friendly = "Cota diária ou limite de requisições de áudio por IA atingido temporariamente.";
     if (retrySecs) {
       friendly += ` Por favor, aguarde ${retrySecs} segundos e tente novamente.`;
     } else {
@@ -101,6 +104,7 @@ const parseQuotaError = (errorMsg: string): string => {
 export default function App() {
   // Tab managers
   const [rightPanelTab, setRightPanelTab] = useState<"hosts" | "export">("hosts");
+  const [mobileActiveTab, setMobileActiveTab] = useState<"sources" | "config" | "script">("config");
 
   // Document states
   const [documents, setDocuments] = useState<SourceDocument[]>(() => {
@@ -159,6 +163,11 @@ export default function App() {
   });
   const [hasTtsQuotaError, setHasTtsQuotaError] = useState<boolean>(false);
   const [ttsQuotaErrorDetail, setTtsQuotaErrorDetail] = useState<string>("");
+  const [userNotification, setUserNotification] = useState<{
+    type: "error" | "warning" | "info";
+    title: string;
+    message: string;
+  } | null>(null);
 
   // Script states
   const [scriptTitle, setScriptTitle] = useState(() => {
@@ -335,33 +344,46 @@ export default function App() {
       setScriptTitle(data.title);
       setScriptDescription(data.description);
       
-      // Inject unique IDs for speech turns
-      const scriptLines: PodcastScriptLine[] = data.script.map((line: any, idx: number) => ({
-        id: `line-${idx}-${Date.now()}`,
-        speaker: line.speaker,
-        text: line.text,
-        isSynthesized: false,
-        isSynthesizing: false
-      }));
+      // Inject unique IDs for speech turns and check for cached audio
+      const scriptLines: PodcastScriptLine[] = await Promise.all(
+        data.script.map(async (line: any, idx: number) => {
+          const isHost1 = line.speaker.toLowerCase() === host1.name.toLowerCase() || 
+                          line.speaker.toLowerCase().includes(host1.name.toLowerCase()) ||
+                          line.speaker.toLowerCase() === "host 1";
+          const voiceName = isHost1 ? host1.voice : host2.voice;
+          const cached = await getAudioFromCache(line.text, voiceName);
+
+          return {
+            id: `line-${idx}-${Date.now()}`,
+            speaker: line.speaker,
+            text: line.text,
+            isSynthesized: !!cached,
+            isSynthesizing: false,
+            audioBase64: cached || undefined
+          };
+        })
+      );
 
       setScript(scriptLines);
       setActiveLineId(scriptLines[0]?.id || null);
     } catch (err: any) {
-      alert(`Erro: ${err.message}`);
+      const friendlyMsg = parseQuotaError(err.message || "");
+      setUserNotification({
+        type: "error",
+        title: "Falha ao Gerar o Roteiro",
+        message: friendlyMsg || "Não foi possível gerar o roteiro a partir das fontes fornecidas. Verifique a conexão e tente novamente."
+      });
     } finally {
       setIsGeneratingScript(false);
     }
   };
 
-  // Synthesize a single line's audio
+  // Synthesize a single line's audio (with IndexedDB Cache Optimization B)
   const synthesizeLine = async (lineId: string): Promise<string> => {
     // Find line details
     const lineIndex = script.findIndex((l) => l.id === lineId);
     if (lineIndex === -1) throw new Error("Linha não encontrada");
     const line = script[lineIndex];
-
-    // Mark as synthesizing
-    updateLineState(lineId, { isSynthesizing: true, error: undefined });
 
     const isHost1 = line.speaker.toLowerCase() === host1.name.toLowerCase() || 
                     line.speaker.toLowerCase().includes(host1.name.toLowerCase()) ||
@@ -369,6 +391,26 @@ export default function App() {
     
     const voiceName = isHost1 ? host1.voice : host2.voice;
     const toneInstruction = isHost1 ? host1.toneDescription : host2.toneDescription;
+
+    // Check if audio is already present in state
+    if (line.audioBase64 && line.isSynthesized) {
+      return line.audioBase64;
+    }
+
+    // Check IndexedDB local audio cache first (0 tokens, 0 API quota)
+    const cachedAudio = await getAudioFromCache(line.text, voiceName);
+    if (cachedAudio) {
+      updateLineState(lineId, { 
+        isSynthesizing: false, 
+        isSynthesized: true, 
+        audioBase64: cachedAudio,
+        error: undefined
+      });
+      return cachedAudio;
+    }
+
+    // Mark as synthesizing
+    updateLineState(lineId, { isSynthesizing: true, error: undefined });
 
     try {
       const res = await fetch("/api/podcast/synthesize-chunk", {
@@ -383,8 +425,11 @@ export default function App() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Erro de síntese do Gemini");
+        throw new Error(data.error || "Erro de síntese de voz.");
       }
+
+      // Save generated audio to IndexedDB cache for future instant reuse
+      await saveAudioToCache(line.text, voiceName, data.audio);
 
       updateLineState(lineId, { 
         isSynthesizing: false, 
@@ -623,7 +668,11 @@ export default function App() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert("Erro ao montar o arquivo WAV consolidado.");
+      setUserNotification({
+        type: "error",
+        title: "Erro ao Exportar Áudio",
+        message: "Ocorreu uma falha ao compilar o arquivo WAV consolidado. Tente novamente."
+      });
     }
   };
 
@@ -650,7 +699,12 @@ export default function App() {
 
       setMetadata(data);
     } catch (err: any) {
-      alert(`Falha: ${err.message}`);
+      const friendlyMsg = parseQuotaError(err.message || "");
+      setUserNotification({
+        type: "error",
+        title: "Erro ao Gerar Metadados",
+        message: friendlyMsg || "Não foi possível gerar as Notas de Show e SEO do episódio."
+      });
     } finally {
       setIsGeneratingMetadata(false);
     }
@@ -660,33 +714,117 @@ export default function App() {
     <div className="min-h-screen lg:h-screen lg:max-h-screen bg-gray-50 flex flex-col font-sans select-none antialiased text-gray-800 lg:overflow-hidden">
       
       {/* Header Bar */}
-      <header id="app-header" className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-gray-950 text-white rounded-xl shadow-md shadow-black/5 flex items-center justify-center">
+      <header id="app-header" className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0 w-full sm:w-auto">
+          <div className="p-2 bg-gray-950 text-white rounded-xl shadow-md shadow-black/5 flex items-center justify-center shrink-0">
             <Mic2 size={18} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-black tracking-tight text-gray-900">AuraCast - Podcast Studio</h1>
-              <span className="px-2 py-0.5 bg-violet-600 text-white text-[9px] font-black uppercase tracking-wider rounded-md shadow-sm">
-                StratisPlanner 🎯
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h1 className="text-xs sm:text-sm font-black tracking-tight text-gray-900 truncate">AuraCast - Podcast Studio</h1>
+              <span className="px-1.5 py-0.5 bg-violet-600 text-white text-[9px] font-black uppercase tracking-wider rounded-md shadow-sm whitespace-nowrap">
+                Estudo Inteligente 🎯
               </span>
-              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[9px] font-bold rounded-full">
+              <span className="hidden sm:inline-block px-2 py-0.5 bg-gray-100 text-gray-700 text-[9px] font-bold rounded-full whitespace-nowrap">
                 Uso Pessoal & Concursos
               </span>
             </div>
-            <p className="text-[10px] text-gray-400 mt-0.5">Gere áudio neural didático de alta retenção para plataformas e concursos públicos</p>
+            <p className="text-[10px] text-gray-400 mt-0.5 truncate sm:whitespace-normal">Gere áudio neural didático de alta retenção para plataformas e concursos públicos</p>
           </div>
         </div>
 
         {/* Top bar indicators */}
-        <div className="hidden sm:flex items-center gap-4 text-[11px] font-medium text-gray-400">
+        <div className="hidden sm:flex items-center gap-4 text-[11px] font-medium text-gray-400 shrink-0">
           <div className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
             <span className="text-gray-600">Serviço de Áudio Ativo</span>
           </div>
         </div>
       </header>
+
+      {/* Mobile Workspace Segmented Navigation (visible on mobile < lg) */}
+      <div id="mobile-workspace-nav" className="lg:hidden bg-white border-b border-gray-200/80 px-3 py-2 flex items-center justify-around gap-1 shrink-0 sticky top-0 z-30 shadow-xs">
+        <button
+          id="mobile-nav-sources"
+          type="button"
+          onClick={() => setMobileActiveTab("sources")}
+          className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+            mobileActiveTab === "sources"
+              ? "bg-violet-600 text-white shadow-sm"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          <FileSpreadsheet size={13} />
+          <span>Fontes ({documents.length})</span>
+        </button>
+        <button
+          id="mobile-nav-config"
+          type="button"
+          onClick={() => setMobileActiveTab("config")}
+          className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+            mobileActiveTab === "config"
+              ? "bg-violet-600 text-white shadow-sm"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          <Settings2 size={13} />
+          <span>Ajustes</span>
+        </button>
+        <button
+          id="mobile-nav-script"
+          type="button"
+          onClick={() => setMobileActiveTab("script")}
+          className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+            mobileActiveTab === "script"
+              ? "bg-violet-600 text-white shadow-sm"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          <Mic2 size={13} />
+          <span>Roteiro ({script.length})</span>
+        </button>
+      </div>
+
+      {/* User Notification Toast / Banner */}
+      {userNotification && (
+        <div
+          id="user-notification-banner"
+          className={`border-b px-6 py-3 flex items-center justify-between gap-3 text-xs font-medium shrink-0 shadow-sm transition-all ${
+            userNotification.type === "error"
+              ? "bg-red-50 border-red-200 text-red-900"
+              : userNotification.type === "warning"
+              ? "bg-amber-50 border-amber-200 text-amber-900"
+              : "bg-blue-50 border-blue-200 text-blue-900"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`p-1.5 rounded-lg shrink-0 ${
+                userNotification.type === "error"
+                  ? "bg-red-100 text-red-700"
+                  : userNotification.type === "warning"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              <AlertCircle size={15} />
+            </div>
+            <div>
+              <strong className="font-bold mr-1.5">{userNotification.title}:</strong>
+              <span className="leading-relaxed">{userNotification.message}</span>
+            </div>
+          </div>
+          <button
+            id="btn-dismiss-user-notification"
+            type="button"
+            onClick={() => setUserNotification(null)}
+            className="p-1 hover:bg-black/5 rounded-lg text-gray-500 hover:text-gray-900 transition-colors cursor-pointer shrink-0"
+            title="Fechar notificação"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       {/* Quota Exceeded Friendly System Banner */}
       {hasTtsQuotaError && (
@@ -696,9 +834,9 @@ export default function App() {
               <Sparkles size={14} className="animate-pulse text-amber-600" />
             </div>
             <div>
-              <strong className="font-bold text-amber-950 block sm:inline mr-1">Controle de Cota do Gemini TTS Ativo:</strong> 
+              <strong className="font-bold text-amber-950 block sm:inline mr-1">Controle de Cota de Áudio Ativo:</strong> 
               <span className="text-amber-800 leading-relaxed">
-                {ttsQuotaErrorDetail || "O limite da API do Gemini para síntese de áudio foi temporariamente excedido. Aguarde alguns segundos para restabelecer a cota do modelo."}
+                {ttsQuotaErrorDetail || "O limite do serviço para síntese de áudio foi temporariamente excedido. Aguarde alguns segundos para restabelecer a cota do modelo."}
               </span>
             </div>
           </div>
@@ -715,10 +853,10 @@ export default function App() {
       )}
 
       {/* Main workspace */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 pb-28 md:p-6 lg:pb-6 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0 overflow-hidden">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 pb-20 md:p-6 lg:pb-6 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 min-h-0 overflow-y-auto lg:overflow-hidden">
         
-        {/* Left column: Sources Pane (Span 4) */}
-        <section id="col-sources" className="lg:col-span-3 flex flex-col min-h-0 h-[400px] lg:h-full">
+        {/* Left column: Sources Pane (Span 3) */}
+        <section id="col-sources" className={`lg:col-span-3 min-h-0 h-[480px] lg:h-full ${mobileActiveTab === "sources" ? "flex flex-col" : "hidden lg:flex lg:flex-col"}`}>
           <DocumentManager
             documents={documents}
             onAddDocument={handleAddDocument}
@@ -728,29 +866,8 @@ export default function App() {
           />
         </section>
 
-        {/* Middle column: Interactive Script Viewer (Span 5) */}
-        <section id="col-script" className="lg:col-span-5 flex flex-col min-h-0 h-[500px] lg:h-full">
-          <ScriptViewer
-            title={scriptTitle}
-            description={scriptDescription}
-            script={script}
-            activeLineId={activeLineId}
-            isPlaying={isPlaying}
-            isGeneratingScript={isGeneratingScript}
-            onUpdateLineText={handleUpdateLineText}
-            onSynthesizeLine={synthesizeLine}
-            onPlayLine={handlePlayLine}
-            onGenerateScript={handleGenerateScript}
-            hasDocuments={documents.length > 0}
-            host1={host1}
-            host2={host2}
-            hasTtsQuotaError={hasTtsQuotaError}
-            ttsQuotaErrorDetail={ttsQuotaErrorDetail}
-          />
-        </section>
-
-        {/* Right column: Configurator & Exporters Tab Panel (Span 4) */}
-        <section id="col-config" className="lg:col-span-4 flex flex-col min-h-0 h-[450px] lg:h-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        {/* Column 2: Configurator & Exporters Tab Panel (Span 4) */}
+        <section id="col-config" className={`lg:col-span-4 min-h-0 h-[480px] lg:h-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${mobileActiveTab === "config" ? "flex flex-col" : "hidden lg:flex lg:flex-col"}`}>
           {/* Tab Selector */}
           <div className="flex border-b border-gray-100 bg-gray-50/50 p-1.5 gap-1 shrink-0">
             <button
@@ -809,6 +926,30 @@ export default function App() {
               />
             )}
           </div>
+        </section>
+
+        {/* Column 3: Interactive Script Viewer (Span 5) */}
+        <section id="col-script" className={`lg:col-span-5 min-h-0 h-[520px] lg:h-full ${mobileActiveTab === "script" ? "flex flex-col" : "hidden lg:flex lg:flex-col"}`}>
+          <ScriptViewer
+            title={scriptTitle}
+            description={scriptDescription}
+            script={script}
+            activeLineId={activeLineId}
+            isPlaying={isPlaying}
+            isGeneratingScript={isGeneratingScript}
+            onUpdateLineText={handleUpdateLineText}
+            onSynthesizeLine={synthesizeLine}
+            onPlayLine={handlePlayLine}
+            onGenerateScript={handleGenerateScript}
+            hasDocuments={documents.length > 0}
+            host1={host1}
+            host2={host2}
+            hasTtsQuotaError={hasTtsQuotaError}
+            ttsQuotaErrorDetail={ttsQuotaErrorDetail}
+            onPlayPause={handlePlayPause}
+            onPreviousLine={handlePreviousLine}
+            onNextLine={handleNextLine}
+          />
         </section>
 
       </main>

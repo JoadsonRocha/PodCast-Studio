@@ -61,36 +61,47 @@ export default function AudioPlayerPanel({
   const synthesisPercentage = hasScript ? Math.round((synthesizedCount / totalCount) * 100) : 0;
 
   return (
-    <div id="audio-player-panel" className="bg-gray-900 border-t border-gray-800 text-white p-4 shrink-0 shadow-2xl relative z-10">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+    <div id="audio-player-panel" className="bg-gray-900/95 backdrop-blur-md border-t border-gray-800 text-white px-3 py-2.5 sm:px-6 sm:py-3.5 shrink-0 shadow-2xl relative z-10">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 md:gap-4">
         
-        {/* Left Side: Current Speaking details or Status */}
-        <div className="flex items-center gap-3 w-full md:w-1/3 min-w-0">
-          <div className={`p-2.5 rounded-xl bg-gray-800 text-gray-300 ${isPlaying ? "text-green-400 animate-pulse" : ""}`}>
-            <AudioLines size={18} />
+        {/* Top/Left Side: Current Speaking details or Status */}
+        <div className="flex items-center justify-between md:justify-start gap-2.5 w-full md:w-1/3 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`p-2 rounded-xl bg-gray-800 text-gray-300 shrink-0 ${isPlaying ? "text-green-400 animate-pulse" : ""}`}>
+              <AudioLines size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h4 id="player-title" className="text-xs font-bold text-gray-200 truncate">
+                {isPlaying ? "Reproduzindo Episódio" : hasScript ? "Roteiro Pronto" : "Podcast Studio"}
+              </h4>
+              <p id="player-subtitle" className="text-[11px] text-gray-400 truncate mt-0.5" title={activeLineText}>
+                {hasScript ? activeLineText : "Gere o roteiro e inicie as vozes"}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h4 id="player-title" className="text-xs font-bold text-gray-200 truncate">
-              {isPlaying ? "Reproduzindo Episódio" : hasScript ? "Roteiro Pronto" : "Podcast Studio"}
-            </h4>
-            <p id="player-subtitle" className="text-[11px] text-gray-400 truncate mt-0.5" title={activeLineText}>
-              {hasScript ? activeLineText : "Gere o roteiro e inicie as sínteses das vozes"}
-            </p>
-          </div>
+
+          {/* Mobile Badge: Vozes Sintetizadas */}
+          {hasScript && (
+            <div className="md:hidden flex items-center gap-1.5 shrink-0 bg-gray-800/90 px-2 py-1 rounded-md border border-gray-700/60">
+              <span className="text-[10px] font-semibold text-gray-400">Vozes:</span>
+              <span className="text-xs font-black text-violet-300">{synthesizedCount}/{totalCount}</span>
+            </div>
+          )}
         </div>
 
-        {/* Middle: Playback controls */}
-        <div className="flex flex-col items-center gap-2 w-full md:w-1/3">
-          <div className="flex items-center gap-4">
+        {/* Center: Playback controls & mobile action row */}
+        <div className="flex items-center justify-between md:justify-center w-full md:w-1/3 gap-2">
+          {/* Controls */}
+          <div className="flex items-center gap-3">
             <button
               id="player-btn-prev"
               type="button"
               disabled={!hasScript || activeLineIndex <= 0}
               onClick={onPreviousLine}
-              className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400 transition-colors cursor-pointer"
+              className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 transition-colors cursor-pointer"
               title="Falar anterior"
             >
-              <SkipBack size={18} />
+              <SkipBack size={16} />
             </button>
 
             <button
@@ -98,14 +109,10 @@ export default function AudioPlayerPanel({
               type="button"
               disabled={!hasScript}
               onClick={onPlayPause}
-              className={`w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                isPlaying 
-                  ? "bg-white text-gray-900 hover:scale-105" 
-                  : "bg-white text-gray-900 hover:scale-105"
-              }`}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-gray-900 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 hover:scale-105 active:scale-95 shadow-sm"
               title={isPlaying ? "Pausar podcast" : "Iniciar podcast sequencial"}
             >
-              {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="ml-0.5" fill="currentColor" />}
+              {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} className="ml-0.5" fill="currentColor" />}
             </button>
 
             <button
@@ -113,16 +120,16 @@ export default function AudioPlayerPanel({
               type="button"
               disabled={!hasScript || activeLineIndex >= script.length - 1}
               onClick={onNextLine}
-              className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400 transition-colors cursor-pointer"
+              className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 transition-colors cursor-pointer"
               title="Próxima fala"
             >
-              <SkipForward size={18} />
+              <SkipForward size={16} />
             </button>
           </div>
 
-          {/* Sequential mini speaker anim */}
+          {/* Sequential mini speaker wave (desktop) */}
           {isPlaying && (
-            <div id="visual-audio-wave" className="flex items-center gap-0.5 h-3">
+            <div id="visual-audio-wave" className="hidden sm:flex items-center gap-0.5 h-3">
               <span className="w-0.5 h-full bg-green-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s", animationDuration: "0.7s" }}></span>
               <span className="w-0.5 h-1/2 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s", animationDuration: "0.5s" }}></span>
               <span className="w-0.5 h-3/4 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: "0s", animationDuration: "0.6s" }}></span>
@@ -130,13 +137,46 @@ export default function AudioPlayerPanel({
               <span className="w-0.5 h-5/6 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: "0.15s", animationDuration: "0.8s" }}></span>
             </div>
           )}
+
+          {/* Mobile Buttons (Synthesize All, Download WAV) */}
+          <div className="flex md:hidden items-center gap-1.5 shrink-0">
+            {hasScript && !isFullySynthesized && (
+              <button
+                id="player-btn-synth-all-mobile"
+                type="button"
+                disabled={isSynthesizingAll}
+                onClick={onSynthesizeAll}
+                className="px-2.5 py-1.5 text-[10px] font-bold bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-500 text-white rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+              >
+                {isSynthesizingAll ? (
+                  <Loader2 size={12} className="animate-spin text-white" />
+                ) : (
+                  <Sparkles size={12} className="text-white" />
+                )}
+                <span>{isSynthesizingAll ? `${synthesizeAllProgress.current}/${synthesizeAllProgress.total}` : "Sintetizar"}</span>
+              </button>
+            )}
+
+            {hasScript && (
+              <button
+                id="player-btn-download-wav-mobile"
+                type="button"
+                disabled={synthesizedCount === 0}
+                onClick={onDownloadPodcast}
+                className="px-2.5 py-1.5 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                title="Baixar WAV"
+              >
+                <Download size={12} />
+                <span>WAV</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Right Side: Master controls (Synthesize All, Download WAV) */}
-        <div className="flex items-center justify-end gap-3 w-full md:w-1/3">
+        {/* Right Side: Master controls (Synthesize All, Download WAV) - Desktop (md+) */}
+        <div className="hidden md:flex items-center justify-end gap-3 w-1/3">
           {hasScript && (
-            <div className="flex flex-col items-end gap-1.5 text-right">
-              {/* Progress bar of cached speech */}
+            <div className="flex flex-col items-end gap-1 text-right">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold text-gray-400">
                   Vozes Treinadas:
@@ -145,7 +185,7 @@ export default function AudioPlayerPanel({
                   {synthesizedCount}/{totalCount} ({synthesisPercentage}%)
                 </span>
               </div>
-              <div className="w-36 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div className="w-32 sm:w-36 h-1.5 bg-gray-800 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-blue-500 to-violet-500 rounded-full transition-all duration-500"
                   style={{ width: `${synthesisPercentage}%` }}
@@ -155,7 +195,6 @@ export default function AudioPlayerPanel({
           )}
 
           <div className="flex gap-2 shrink-0">
-            {/* Synthesize All Button */}
             {hasScript && !isFullySynthesized && (
               <button
                 id="player-btn-synth-all"
@@ -178,7 +217,6 @@ export default function AudioPlayerPanel({
               </button>
             )}
 
-            {/* Download Master WAV button */}
             {hasScript && (
               <button
                 id="player-btn-download-wav"

@@ -1,32 +1,20 @@
-# 🎙️ PodCast Studio
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-Converta documentos, textos e links em podcasts dinâmicos com dois apresentadores inteligentes e vozes personalizáveis.  
-O **PodCast Studio** foi criado para transformar conteúdo escrito em áudio envolvente, permitindo que qualquer pessoa consuma informação de forma prática e acessível.
+# Run and deploy your AI Studio app
 
----
+This contains everything you need to run your app locally.
 
-## 🚀 Funcionalidades
+View your app in AI Studio: https://ai.studio/apps/e0f30a8e-f6ef-418e-a0e0-72600ae27037
 
-- Conversão de **documentos, textos e links** em episódios de podcast.
-- Dois apresentadores virtuais para tornar o conteúdo mais dinâmico.
-- **Personalização de vozes** e estilos de apresentação.
-- Geração automática de roteiros e narração.
-- Exportação dos episódios em formato de áudio.
+## Run Locally
 
----
+**Prerequisites:**  Node.js
 
-## 🛠️ Tecnologias Utilizadas
 
-- **Backend:** Node.js / Express
-- **Frontend:** React
-- **Banco de Dados:** PostgreSQL ou MongoDB
-- **Áudio:** bibliotecas de síntese de voz (TTS)
-- **Hospedagem:** GitHub + serviços de nuvem
-
----
-
-## 📦 Instalação e Uso
-
-1. Clone o repositório:
-   ```bash
-   git clone https://github.com/JoadsonRocha/PodCast-Studio.git
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
